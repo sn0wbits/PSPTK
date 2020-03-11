@@ -1,2 +1,2 @@
 # PSPTK
- A PowerShell PenTest Tool Kit made for personal use
+ A PowerShell PenTest Toolkit made for personal use
