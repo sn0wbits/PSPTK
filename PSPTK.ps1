@@ -1,8 +1,39 @@
-﻿# General variables
-$script_name = $MyInvocation.MyCommand.Name;
-$script_source = $MyInvocation.MyCommand.Source;
+﻿# General Variables
+$SCRIPT_NAME = $MyInvocation.MyCommand.Name;
+$SCRIPT_PATH = $MyInvocation.MyCommand.Source;
+$SCRIPT_VERS = 'v.0.2';
 
+function menu{
+    $BANNER = @"
+     ____  ____  ____ _____ _  __
+    |  _ \/ ___||  _ \_   _| |/ /
+    | |_) \___ \| |_) || | | ' / 
+    |  __/ ___) |  __/ | | | . \ 
+    |_|   |____/|_|    |_| |_|\_\.ps1
+_________________________________________
 
+PowerShell Penetration Testing Toolkit
+Path: $SCRIPT_PATH
+Ver: $SCRIPT_VERS
+_________________________________________
+
+        - LOCAL INFORMATION -
+
+USER INFORMATION:
+    CURRENT USER...: $env:USERNAME
+    COMPUTERNAME...: $env:COMPUTERNAME
+
+PATH INFORMATION:
+    HOMEPATH.......: $env:HOMEPATH
+    USER TEMP PATH.: $env:TEMP
+    SYS TEMP PATH..: $(if (Test-Path "$env:HOMEDRIVE\temp") {'C:\temp'})
+    ONEDRIVE PATH..: $(if ($env:OneDrive -match 'onedrive') {$env:OneDrive})
+
+"@
+Write-Host($BANNER);
+}
+
+menu;
 function set_execution_policy {
     if (Get-ExecutionPolicy | ForEach-Object {$_ -ne 'bypass'}) {
         Write-Host("[!] Execution Policy is $policy not Bypass") -ForegroundColor Yellow;
@@ -14,7 +45,7 @@ function set_execution_policy {
             Write-Host('[!] Attempting to rerun script with bypass!') -ForegroundColor Yellow;
             try {
                 Start-Sleep(2);
-                powershell.exe -ep bypass -command "$script_source";
+                powershell.exe -ep bypass -command "$SCRIPT_PATH";
             } catch {
                 Write-Host($Error[0]) -ForegroundColor Red;
                 Write-Host('[!] Unable to open script with bypass!') -ForegroundColor Yellow;
@@ -44,9 +75,8 @@ function change_user {
     $input_user = Read-Host('[i] Username');
     $input_pass = Read-Host('[i] Password') ;
     $input_options = Read-Host("[i] Options:`nf = Force entered credentials.`nv = Verbose mode.`nEnter Options");
-    if ($input_options -match 'f') {$force = $true}
-    if ($input_options -match 'v'
-    ) {$verbose = $true}
+    if ($input_options -match 'f') {$force = $true};
+    if ($input_options -match 'v') {$verbose = $true};
 
     if (!$force) {
         if ($verbose){Write-Host('[+] Enumerating Users...') -ForegroundColor Cyan};
@@ -93,8 +123,8 @@ function change_user {
     PASS:
         $pw");
     }
-
-    Start-Process powershell -WorkingDirectory "$env:HOMEDRIVE\" -Credential $c -NoNewWindow;
+    Copy-Item -Path ".\PSPTK.ps1" -Destination "C:\temp\PSPTK.ps1";
+    Start-Process powershell -NoNewWindow -WorkingDirectory "$env:HOMEDRIVE\temp" -Credential $c;
 }
 
 function single_command_as_user {
@@ -119,6 +149,19 @@ function single_command_as_user {
     $p = ConvertTo-SecureString $input_pass -AsPlainText -Force;
     $c = New-Object System.Management.Automation.PSCredential($e, $p);
 
+    if ($check_perm) {
+        $adm_grps = (Get-LocalGroup).Name  | Where-Object {$_ -match 'admin'};
+        $is_admin = foreach ($group in $adm_grps) {
+            if ((Get-LocalGroupMember -Group $group).Name -match $input_user) {$true} else {$false};
+        }
+        if ($is_admin -match 'True') {
+            Write-Host("`n[!] User is Admin`n") -ForegroundColor Green;
+            break;
+        } else {
+            Write-Host("`n[!] User is not Admin`n") -ForegroundColor Red;
+        }
+    }
+
     $input_command = Read-Host('[i] Command');
     $input_command = [ScriptBlock]::Create($input_command);
     if ($verbose) {Write-Host("[+] Attempting to run command $input_command as user $input_user") -ForegroundColor Cyan};
@@ -133,8 +176,5 @@ function single_command_as_user {
     } Catch {
         Write-Host($Error[0]) -ForegroundColor Red;
     }
-    # Fix this so that it fucking lists when needed I.E. ls / dir
-    foreach ($result in $job_result) { 
-        Write-Host("$env:USERNAME <- $input_user > $result");
-    }
+    Write-Host("$env:USERNAME <- $input_user > $job_result");
 }
