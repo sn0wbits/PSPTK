@@ -30,7 +30,7 @@ PATH INFORMATION:
     ONEDRIVE PATH..: $(if ($env:OneDrive -match 'onedrive') {$env:OneDrive})
 
 "@
-Write-Host($BANNER);
+Write-Host($BANNER) -ForegroundColor Green;
 }
 
 menu;
@@ -177,4 +177,17 @@ function single_command_as_user {
         Write-Host($Error[0]) -ForegroundColor Red;
     }
     Write-Host("$env:USERNAME <- $input_user > $job_result");
+}
+
+# TODO Add scan for vulnerable processes
+function check_processes {
+    $processes = Get-Process;
+    Write-Host("ID`tNAME") -ForegroundColor Cyan;
+    foreach ($process in $processes) {
+        Write-Host("$($process.Id)  `t$($process.Name)") -ForegroundColor Yellow;
+    }
+}
+
+# Fix on win PC because linux one sucks...
+function check_services {
 }
